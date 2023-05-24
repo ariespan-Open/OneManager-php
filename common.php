@@ -1,5 +1,6 @@
 <?php
 
+global $platform;
 global $timezones;
 global $slash;
 global $drive;
@@ -66,8 +67,8 @@ $EnvConfigs = [
     'guestup_path'      => 0b0111,
     'domainforproxy'    => 0b0111,
     'public_path'       => 0b0111,
-    'fileConduitSize'   => 0b110,
-    'fileConduitCacheTime'   => 0b110,
+    'fileConduitSize'   => 0b0110,
+    'fileConduitCacheTime'   => 0b0110,
 ];
 
 $timezones = array( 
@@ -672,6 +673,7 @@ function isHideFile($name)
         'foot.omf',
         'favicon.ico',
         'robots.txt',
+        'index.htm',
         'index.html',
     ];
 
@@ -1417,6 +1419,7 @@ function EnvOpt($needUpdate = 0)
     global $timezones;
     global $slash;
     global $drive;
+    global $platform;
     ksort($EnvConfigs);
     $disktags = explode('|', getConfig('disktag'));
     $envs = '';
@@ -1440,7 +1443,7 @@ function EnvOpt($needUpdate = 0)
     if (isset($_POST['submit1'])) if (compareadminmd5('admin', getConfig('admin'), $_COOKIE['admin'], $_POST['_admin'])) {
         $_SERVER['disk_oprating'] = '';
         foreach ($_POST as $k => $v) {
-            if (isShowedEnv($k) || $k=='disktag_del' || $k=='disktag_add' || $k=='disktag_rename' || $k=='disktag_copy') {
+            if (isShowedEnv($k) || $k=='disktag_del' || $k=='disktag_add' || $k=='disktag_rename' || $k=='disktag_copy' || $k=='client_secret') {
                 $tmp[$k] = $v;
             }
             if ($k=='disktag_newname') {
@@ -1705,6 +1708,9 @@ output:
     </td>
 </tr>
 </table>
+<form name="' . $disktag . '" action="" method="post">
+    <input name="_admin" type="hidden" value="">
+    <input type="hidden" name="disk" value="' . $disktag . '">
 <table border=1 width=100%>
     <tr>
         <td>Driver</td>
@@ -1712,6 +1718,18 @@ output:
         if ($diskok) $frame .= ' <a href="?AddDisk=' . get_class($disk_tmp) . '&disktag=' . $disktag . '&SelectDrive">' . getconstStr('ChangeDrivetype') . '</a>';
         $frame .= '</td>
     </tr>';
+        if (getConfig('client_id', $disktag) && getConfig('client_secret', $disktag)) {
+            $frame .= '
+    <tr>
+        <td>client_id</td>
+        <td>' . getConfig('client_id', $disktag) . '</td>
+    </tr>';
+            $frame .= '
+    <tr>
+        <td>client_secret</td>
+        <td><input type="text" name="client_secret" value="' . getConfig('client_secret', $disktag) . '" placeholder="' . getconstStr('EnvironmentsDescription')['client_secret'] . '" style="width:100%"></td>
+    </tr>';
+        }
         if ($diskok) {
             $frame .= '
     <tr>
@@ -1725,10 +1743,6 @@ output:
     </tr>';
             }
 
-            $frame .= '
-<form name="' . $disktag . '" action="" method="post">
-    <input name="_admin" type="hidden" value="">
-    <input type="hidden" name="disk" value="' . $disktag . '">';
             foreach ($EnvConfigs as $key => $val) if (isInnerEnv($key) && isShowedEnv($key)) {
                 $frame .= '
     <tr>
@@ -1758,8 +1772,7 @@ output:
     </tr>';
             }
             $frame .= '
-    <tr><td></td><td><input type="submit" name="submit1" value="' . getconstStr('Setup') . '"></td></tr>
-</form>';
+    <tr><td></td><td><input type="submit" name="submit1" value="' . getconstStr('Setup') . '"></td></tr>';
         } else {
             $frame .= '
 <tr>
@@ -1768,6 +1781,7 @@ output:
         }
         $frame .= '
 </table>
+</form>
 
 <script>
     function deldiskconfirm(t) {
@@ -1903,17 +1917,7 @@ output:
 </script>';
 
         $canOneKeyUpate = 0;
-        if (isset($_SERVER['USER'])&&$_SERVER['USER']==='qcloud') {
-            $canOneKeyUpate = 1;
-        } elseif (isset($_SERVER['HEROKU_APP_DIR'])&&$_SERVER['HEROKU_APP_DIR']==='/app') {
-            $canOneKeyUpate = 1;
-        } elseif (isset($_SERVER['FC_FUNC_CODE_PATH'])) {
-            $canOneKeyUpate = 1;
-        } elseif (isset($_SERVER['BCE_CFC_RUNTIME_NAME'])&&$_SERVER['BCE_CFC_RUNTIME_NAME']=='php7') {
-            $canOneKeyUpate = 1;
-        } elseif (isset($_SERVER['_APP_SHARE_DIR'])&&$_SERVER['_APP_SHARE_DIR']==='/var/share/CFF/processrouter') {
-            $canOneKeyUpate = 1;
-        } elseif (isset($_SERVER['DOCUMENT_ROOT'])&&$_SERVER['DOCUMENT_ROOT']==='/var/task/user') {
+        if ('Normal'!=$platform) {
             $canOneKeyUpate = 1;
         } else {
             $tmp = time();
@@ -1924,7 +1928,7 @@ output:
         }
         $frame .= '
         <a href="https://github.com/qkqpttgf/OneManager-php" target="_blank">Github</a>
-<a href="https://git.hit.edu.cn/ysun/OneManager-php" target="_blank">HIT Gitlab</a><br><br>
+        <a href="https://git.hit.edu.cn/ysun/OneManager-php" target="_blank">HIT Gitlab</a><br><br>
 ';
         if (!$canOneKeyUpate) {
             $frame .= '
@@ -2229,6 +2233,10 @@ function render_list($path = '', $files = [])
 
     if (isset($files['list']['index.html']) && !$_SERVER['admin']) {
         $htmlcontent = get_content(path_format($path . '/index.html'))['content'];
+        return output($htmlcontent['body'], $htmlcontent['stat']);
+    }
+    if (isset($files['list']['index.htm']) && !$_SERVER['admin']) {
+        $htmlcontent = get_content(path_format($path . '/index.htm'))['content'];
         return output($htmlcontent['body'], $htmlcontent['stat']);
     }
     //$path = str_replace('%20','%2520',$path);
